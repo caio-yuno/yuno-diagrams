@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuno – Dispute Lifecycle</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-width: 100%;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1540px;
+    height: 874px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* Full-diagram SVG layer (grid + connectors + sparks) */
+  .layer-svg {
+    position: absolute;
+    inset: 0;
+    width: 1540px;
+    height: 874px;
+    pointer-events: none;
+  }
+
+  /* ── Standalone node boxes (Base 1 style) ─────────────────── */
+  .node {
+    position: absolute;
+    background: #ffffff;
+    border: 1px solid;
+    border-radius: 6px;
+    box-shadow: -4px -4px 10px 0 #ffffff, 4px 4px 8px 0 rgba(0,0,0,0.10);
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0a0a0a;
+    text-align: center;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Horizontally centre using transform so SVG paths can use fixed center x */
+    transform: translateX(-50%);
+  }
+
+  .node.blue   { border-color: #2563eb; background: #ffffff; }
+  .node.red    { border-color: #dc2626; background: #fff1f2; }
+  .node.orange { border-color: #f97316; background: #fff7ed; }
+  .node.green  { border-color: #16a34a; background: #f0fdf4; }
+  .node.indigo { border-color: #6366f1; background: #eef2ff; }
+
+  /* ── Edge labels ────────────────────────────────────────────── */
+  .edge-label {
+    position: absolute;
+    font-size: 9px;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* ── Error transversal bar ──────────────────────────────────── */
+  .error-bar {
+    position: absolute;
+    background: #fff1f2;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #dc2626;
+    text-align: center;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="scroll-wrapper">
+<div class="diagram">
+
+<!--
+  COORDINATE SYSTEM (Base 1 style)
+  bg_diagram  : left=40, top=48, width=1460, height=778
+
+  Node center X values (all use transform:translateX(-50%)):
+    PAYMENT SUCCEEDED : cx=280
+    DISPUTE RECEIVED  : cx=520
+    UNDER REVIEW      : cx=770
+    DISPUTE WON       : cx=1020  (top branch)
+    CHARGEBACK        : cx=1020  (bottom branch)
+    PRE-ARBITRATION   : cx=1240  (from chargeback)
+    ARBITRATION WON   : cx=1400  (top)
+    ARBITRATION LOST  : cx=1400  (bottom)
+
+  Node top Y values:
+    Start dot         : cy=350  (r=9)
+    Row 1 (main)      : top=332 → cy=350 (h≈36)
+    Top branch        : top=220 → cy=238
+    Bottom branch     : top=444 → cy=462
+    Pre-arb           : top=444 → cy=462
+    Arb top           : top=332
+    Arb bottom        : top=552
+-->
+
+<svg class="layer-svg" viewBox="0 0 1540 874" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="card-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+
+    <!-- Arrowhead marker -->
+    <marker id="arr" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arr-green" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arr-red" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#f97316"/>
+    </marker>
+
+    <!-- Spark glow -->
+    <filter id="spark-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <clipPath id="diagram-clip">
+      <rect x="40" y="48" width="1460" height="778" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background card ──────────────────────────────────────── -->
+  <rect x="40" y="48" width="1460" height="778" rx="10"
+        fill="#ffffff" filter="url(#card-shadow)" opacity="0.6"/>
+
+  <!-- ── Dashed grid — vertical lines ─────────────────────────── -->
+  <g opacity="0.45" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="5 6">
+    <line x1="190"  y1="48" x2="190"  y2="826"/>
+    <line x1="340"  y1="48" x2="340"  y2="826"/>
+    <line x1="490"  y1="48" x2="490"  y2="826"/>
+    <line x1="640"  y1="48" x2="640"  y2="826"/>
+    <line x1="790"  y1="48" x2="790"  y2="826"/>
+    <line x1="940"  y1="48" x2="940"  y2="826"/>
+    <line x1="1090" y1="48" x2="1090" y2="826"/>
+    <line x1="1240" y1="48" x2="1240" y2="826"/>
+    <line x1="1390" y1="48" x2="1390" y2="826"/>
+  </g>
+
+  <!-- ── Dashed grid — horizontal lines ──────────────────────── -->
+  <g opacity="0.45" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="5 6">
+    <line x1="40" y1="135" x2="1500" y2="135"/>
+    <line x1="40" y1="285" x2="1500" y2="285"/>
+    <line x1="40" y1="435" x2="1500" y2="435"/>
+    <line x1="40" y1="585" x2="1500" y2="585"/>
+    <line x1="40" y1="735" x2="1500" y2="735"/>
+  </g>
+
+  <!-- ── Initial state dot ────────────────────────────────────── -->
+  <circle cx="140" cy="350" r="9" fill="#0a0a0a"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CONNECTOR PATHS
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- p0: Start → PAYMENT SUCCEEDED -->
+  <path id="p0" d="M 149,350 L 195,350"
+        stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- p1: PAYMENT SUCCEEDED → DISPUTE RECEIVED -->
+  <path id="p1" d="M 380,350 L 435,350"
+        stroke="#f97316" stroke-width="1.5" fill="none" marker-end="url(#arr-orange)"/>
+
+  <!-- p2: DISPUTE RECEIVED → UNDER REVIEW -->
+  <path id="p2" d="M 620,350 L 680,350"
+        stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- p3: UNDER REVIEW → DISPUTE WON (up branch, green) -->
+  <path id="p3" d="M 860,340 C 900,240 950,238 960,238"
+        stroke="#16a34a" stroke-width="1.5" fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- p4: UNDER REVIEW → CHARGEBACK (down branch, red) -->
+  <path id="p4" d="M 860,360 C 900,460 950,462 960,462"
+        stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- p5: CHARGEBACK → PRE-ARBITRATION (horizontal, orange, dashed optional) -->
+  <path id="p5" d="M 1110,462 L 1150,462"
+        stroke="#f97316" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-orange)"/>
+
+  <!-- p6: PRE-ARBITRATION → ARBITRATION WON (up branch, green) -->
+  <path id="p6" d="M 1340,450 C 1365,380 1385,350 1395,350"
+        stroke="#16a34a" stroke-width="1.5" fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- p7: PRE-ARBITRATION → ARBITRATION LOST (down branch, red) -->
+  <path id="p7" d="M 1340,474 C 1365,540 1385,570 1395,570"
+        stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ANIMATED SPARKS
+  ════════════════════════════════════════════════════════════════ -->
+  <g clip-path="url(#diagram-clip)">
+
+    <!-- p0: → PAYMENT SUCCEEDED (blue) -->
+    <circle r="3.5" fill="#2563eb" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="0.6s" begin="0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p0"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p1: → DISPUTE RECEIVED (orange) -->
+    <circle r="3.5" fill="#f97316" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.0s" begin="0.4s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p2: → UNDER REVIEW (blue) -->
+    <circle r="3.5" fill="#2563eb" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.0s" begin="1.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p3: → DISPUTE WON (green) -->
+    <circle r="3.5" fill="#16a34a" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="1.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p3"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p4: → CHARGEBACK (red) -->
+    <circle r="3.5" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="2.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p4"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p5: → PRE-ARBITRATION (orange) -->
+    <circle r="3.5" fill="#f97316" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="0.6s" begin="2.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p5"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p6: → ARBITRATION WON (green) -->
+    <circle r="3.5" fill="#16a34a" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.4s" begin="3.2s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p6"/>
+      </animateMotion>
+    </circle>
+
+    <!-- p7: → ARBITRATION LOST (red) -->
+    <circle r="3.5" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.4s" begin="3.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#p7"/>
+      </animateMotion>
+    </circle>
+
+  </g>
+</svg>
+
+<!-- ════════════════════════════════════════════════════════════════
+     HTML NODES
+     All use transform:translateX(-50%) so left = center x of node.
+════════════════════════════════════════════════════════════════ -->
+
+<!-- PAYMENT SUCCEEDED: cx=280, top=332 -->
+<div class="node green" style="left:280px; top:332px;">PAYMENT SUCCEEDED</div>
+
+<!-- DISPUTE RECEIVED: cx=520, top=332 -->
+<div class="node orange" style="left:520px; top:332px;">DISPUTE RECEIVED</div>
+
+<!-- UNDER REVIEW: cx=770, top=332 -->
+<div class="node blue" style="left:770px; top:332px; border-color:#eab308; background:#fefce8;">UNDER REVIEW</div>
+
+<!-- DISPUTE WON: cx=1030, top=220 -->
+<div class="node green" style="left:1030px; top:220px;">DISPUTE WON</div>
+
+<!-- CHARGEBACK: cx=1030, top=444 -->
+<div class="node red" style="left:1030px; top:444px;">CHARGEBACK</div>
+
+<!-- PRE-ARBITRATION: cx=1240, top=444 -->
+<div class="node orange" style="left:1240px; top:444px;">PRE-ARBITRATION</div>
+
+<!-- ARBITRATION WON: cx=1430, top=332 -->
+<div class="node green" style="left:1430px; top:332px;">ARBITRATION WON</div>
+
+<!-- ARBITRATION LOST: cx=1430, top=552 -->
+<div class="node red" style="left:1430px; top:552px;">ARBITRATION LOST</div>
+
+<!-- ── Edge labels ─────────────────────────────────────────────── -->
+<div class="edge-label" style="left:920px; top:216px;">Evidence accepted,<br>funds retained</div>
+<div class="edge-label" style="left:920px; top:480px;">Evidence rejected,<br>funds deducted</div>
+<div class="edge-label" style="left:1130px; top:430px; font-style:italic;">optional</div>
+
+<!-- ── Error transversal bar ───────────────────────────────────── -->
+<div class="error-bar" style="left:340px; top:680px;">DISPUTE EXPIRED &mdash; No response within deadline</div>
+
+</div><!-- /diagram -->
+</div><!-- /scroll-wrapper -->
+</body>
+</html>

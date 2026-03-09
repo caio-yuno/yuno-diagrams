@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuno – Webhook Lifecycle Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-width: 100%;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1540px;
+    height: 874px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .layer-svg {
+    position: absolute;
+    inset: 0;
+    width: 1540px;
+    height: 874px;
+    pointer-events: none;
+  }
+
+  /* ── Swim lane labels ───────────────────────────────────────── */
+  .lane-label {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0a0a0a;
+    line-height: 1.43;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* ── Step boxes (Base 2 style) ──────────────────────────────── */
+  .step {
+    position: absolute;
+    width: 124px;
+    height: 98px;
+    background: #ffffff;
+    border: 1px solid #3e4fe0;
+    border-radius: 6px;
+    box-shadow: -4px -4px 10px 0 #ffffff, 4px 4px 8px 0 rgba(0,0,0,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #0a0a0a;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .step.red-border   { border-color: #dc2626; }
+  .step.green-border { border-color: #15803d; }
+  .step.orange-border { border-color: #f97316; }
+</style>
+</head>
+<body>
+<div class="scroll-wrapper">
+<div class="diagram">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SVG: background, swim lane dividers, connectors, sparks
+
+     3 swim lanes (Yuno Server / Merchant Server / Retry Logic):
+       Lane 0 (Yuno)   : y=48  → y=291  cy=169  box top=120
+       Lane 1 (Server) : y=291 → y=583  cy=437  box top=388
+       Lane 2 (Retry)  : y=583 → y=826  cy=704  box top=655
+
+     Columns spaced across 1540px canvas:
+       Col1=221  Col2=397  Col3=573  Col4=749  Col5=925  Col6=1101  Col7=1277
+       cx: 283   459   635   811   987    1163   1339
+═══════════════════════════════════════════════════════════════ -->
+<svg class="layer-svg" viewBox="0 0 1540 874" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="card-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="rgba(0,0,0,0.07)"/>
+    </filter>
+    <marker id="arr-blue" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#64748b"/>
+    </marker>
+    <marker id="arr-red" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arr-green" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#15803d"/>
+    </marker>
+    <filter id="spark-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="diagram-clip">
+      <rect x="40" y="48" width="1460" height="778" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background card ───────────────────────────────────────── -->
+  <rect x="40" y="48" width="1460" height="778" rx="10"
+        fill="#ffffff" filter="url(#card-shadow)" opacity="0.55"/>
+
+  <!-- ── Server lane tint ─────────────────────────────────────── -->
+  <rect x="40" y="291" width="1460" height="292" fill="#fafafa" opacity="1"/>
+
+  <!-- ── Lane dividers ─────────────────────────────────────────── -->
+  <line x1="40" y1="291" x2="1500" y2="291" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+  <line x1="40" y1="583" x2="1500" y2="583" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ── Left label panel divider ──────────────────────────────── -->
+  <line x1="191" y1="48" x2="191" y2="826" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ── Retry zone dashed outline (Col3-Col5, Lane2 area) ───── -->
+  <rect x="540" y="590" width="510" height="225" rx="8"
+        fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>
+  <text x="795" y="608" text-anchor="middle" font-family="Inter" font-size="10" font-weight="600" fill="#dc2626" opacity="0.7">RETRY ZONE (if no 200 in 5s)</text>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CONNECTOR PATHS
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- v1: Col1 Yuno→Server: POST to webhook URL (blue, solid down) -->
+  <path id="v1" d="M 283,218 L 283,388"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-blue)"/>
+
+  <!-- v2: Col2 Server→Server: Process event (blue, internal) -->
+  <path id="h2" d="M 345,437 L 397,437"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-blue)"/>
+
+  <!-- v3: Col2 Server→Yuno: Return 200 OK (green, dashed up) -->
+  <path id="v3" d="M 459,388 L 459,218"
+        stroke="#15803d" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- r1: Col3 Yuno→Retry: Retry #1 30s (red, solid down) -->
+  <path id="r1" d="M 635,218 L 635,655"
+        stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- r2: Col3→Col4 Retry: horizontal to Retry #2 (red) -->
+  <path id="r2" d="M 697,704 L 749,704"
+        stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- r3: Col4→Col5 Retry: horizontal to Retry #3 (red) -->
+  <path id="r3" d="M 873,704 L 925,704"
+        stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- r4: Col5 Retry→Yuno: Max retries exceeded, mark failed (red up) -->
+  <path id="r4" d="M 987,655 C 987,400 1163,400 1163,218"
+        stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- g1: Col2 success path Server→Server: Update order (green) -->
+  <path id="g1" d="M 521,437 C 700,437 1100,437 1277,437"
+        stroke="#15803d" stroke-width="1.5" fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ANIMATED SPARKS
+  ════════════════════════════════════════════════════════════════ -->
+  <g clip-path="url(#diagram-clip)">
+
+    <!-- v1: POST webhook (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- h2: Process event (blue) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="0.5s" begin="0.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#h2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v3: Return 200 OK (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v3"/>
+      </animateMotion>
+    </circle>
+
+    <!-- r1: Retry trigger (red, down) -->
+    <circle r="3.5" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="2.2s" begin="2.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#r1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- r2: Retry #1→#2 (red, horizontal) -->
+    <circle r="3" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="0.6s" begin="2.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#r2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- r3: Retry #2→#3 (red, horizontal) -->
+    <circle r="3" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="0.6s" begin="3.4s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#r3"/>
+      </animateMotion>
+    </circle>
+
+    <!-- r4: Max retries → failed (red, up curve) -->
+    <circle r="3.5" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="2.4s" begin="4.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#r4"/>
+      </animateMotion>
+    </circle>
+
+    <!-- g1: Success path update order (green) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="3.0s" begin="1.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#g1"/>
+      </animateMotion>
+    </circle>
+
+  </g>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SWIM LANE LABELS
+═══════════════════════════════════════════════════════════════ -->
+<div class="lane-label" style="left:115px; top:148px;">Yuno<br>Server</div>
+<div class="lane-label" style="left:115px; top:416px;">Merchant<br>Server</div>
+<div class="lane-label" style="left:115px; top:683px;">Retry<br>Logic</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STEP BOXES
+     Lane 0 top=120 · Lane 1 top=388 · Lane 2 top=655
+═══════════════════════════════════════════════════════════════ -->
+
+<!-- Col 1: Event occurs → POST webhook -->
+<div class="step" style="left:221px; top:120px;">Event occurs<br>(payment.<br>succeeded)</div>
+<div class="step" style="left:221px; top:388px;">POST to<br>webhook URL</div>
+
+<!-- Col 2: Process → Return 200 -->
+<div class="step green-border" style="left:397px; top:120px;">Receives<br>200 OK</div>
+<div class="step green-border" style="left:397px; top:388px;">Process event<br>Return<br>200 OK</div>
+
+<!-- Col 3: Alt path — Retry #1 -->
+<div class="step red-border" style="left:573px; top:120px;">No 200<br>within 5s</div>
+<div class="step red-border" style="left:573px; top:655px;">Retry #1<br>(30s delay)</div>
+
+<!-- Col 4: Retry #2 -->
+<div class="step red-border" style="left:749px; top:655px;">Retry #2<br>(1min delay)</div>
+
+<!-- Col 5: Retry #3 -->
+<div class="step red-border" style="left:925px; top:655px;">Retry #3<br>(5min delay)</div>
+
+<!-- Col 6: Mark as failed -->
+<div class="step red-border" style="left:1101px; top:120px;">Mark as<br>failed</div>
+
+<!-- Col 7: Success path — Update order -->
+<div class="step green-border" style="left:1277px; top:388px;">Update<br>order<br>status</div>
+
+</div><!-- /diagram -->
+</div><!-- /scroll-wrapper -->
+</body>
+</html>

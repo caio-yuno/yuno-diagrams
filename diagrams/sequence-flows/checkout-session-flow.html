@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuno – Checkout Session Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-width: 100%;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1540px;
+    height: 874px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .layer-svg {
+    position: absolute;
+    inset: 0;
+    width: 1540px;
+    height: 874px;
+    pointer-events: none;
+  }
+
+  /* ── Swim lane labels ───────────────────────────────────────── */
+  .lane-label {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0a0a0a;
+    line-height: 1.43;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* ── Step boxes (Base 2 style) ──────────────────────────────── */
+  .step {
+    position: absolute;
+    width: 124px;
+    height: 98px;
+    background: #ffffff;
+    border: 1px solid #3e4fe0;
+    border-radius: 6px;
+    box-shadow: -4px -4px 10px 0 #ffffff, 4px 4px 8px 0 rgba(0,0,0,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #0a0a0a;
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  /* ── Step badges ────────────────────────────────────────────── */
+  .badge {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    background: #3e4fe0;
+    color: #ffffff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+<div class="scroll-wrapper">
+<div class="diagram">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SVG: background, swim lane dividers, connectors, sparks
+
+     3 swim lanes (Merchant Client / Merchant Server / Yuno Server):
+       Lane 0 (Client) : y=48  → y=291  cy=169  box top=120
+       Lane 1 (Server) : y=291 → y=583  cy=437  box top=388
+       Lane 2 (Yuno)   : y=583 → y=826  cy=704  box top=655
+
+     6 columns, 196px spacing, starting at left=221:
+       Col1=221  Col2=417  Col3=613  Col4=809  Col5=1005  Col6=1201
+       cx: 283   479   675   871   1067    1263
+═══════════════════════════════════════════════════════════════ -->
+<svg class="layer-svg" viewBox="0 0 1540 874" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="card-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="rgba(0,0,0,0.07)"/>
+    </filter>
+    <marker id="arr-dn" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#64748b"/>
+    </marker>
+    <filter id="spark-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="diagram-clip">
+      <rect x="40" y="48" width="1460" height="778" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background card ───────────────────────────────────────── -->
+  <rect x="40" y="48" width="1460" height="778" rx="10"
+        fill="#ffffff" filter="url(#card-shadow)" opacity="0.55"/>
+
+  <!-- ── Server lane tint ─────────────────────────────────────── -->
+  <rect x="40" y="291" width="1460" height="292" fill="#fafafa" opacity="1"/>
+
+  <!-- ── Lane dividers ─────────────────────────────────────────── -->
+  <line x1="40" y1="291" x2="1500" y2="291" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+  <line x1="40" y1="583" x2="1500" y2="583" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ── Left label panel divider ──────────────────────────────── -->
+  <line x1="191" y1="48" x2="191" y2="826" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CONNECTOR PATHS
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- v1: Col1 Server→Yuno: Create checkout session (solid down) -->
+  <path id="v1" d="M 283,486 L 283,655"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v2: Col2 Yuno→Server: Returns session_id (dashed up) -->
+  <path id="v2" d="M 479,655 L 479,486"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- h1: Col2→Col3 Server→Client: session_id passed to client (horizontal up) -->
+  <path id="h1" d="M 541,437 C 580,437 600,169 675,169"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v3: Col4 Client: Customer selects method (internal, no connector needed) -->
+
+  <!-- v4: Col5 Client→Yuno: Submit payment (solid down, long) -->
+  <path id="v4" d="M 1067,218 L 1067,655"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v5: Col6 Yuno→Server: Webhook payment result (dashed up) -->
+  <path id="v5" d="M 1263,655 L 1263,486"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ANIMATED SPARKS
+  ════════════════════════════════════════════════════════════════ -->
+  <g clip-path="url(#diagram-clip)">
+
+    <!-- v1: Create session (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v2: Returns session_id (orange, up) -->
+    <circle r="3" fill="#f97316" filter="url(#spark-glow)" opacity="0.8">
+      <animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- h1: Pass session to client (orange, curve) -->
+    <circle r="3" fill="#f97316" filter="url(#spark-glow)" opacity="0.8">
+      <animateMotion dur="1.8s" begin="1.5s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#h1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v4: Submit payment (blue, down long) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="2.8s" begin="2.5s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v4"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v5: Webhook result (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="3.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v5"/>
+      </animateMotion>
+    </circle>
+
+  </g>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SWIM LANE LABELS
+═══════════════════════════════════════════════════════════════ -->
+<div class="lane-label" style="left:115px; top:148px;">Merchant<br>Client</div>
+<div class="lane-label" style="left:115px; top:416px;">Merchant<br>Server</div>
+<div class="lane-label" style="left:115px; top:683px;">Yuno<br>Server</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STEP BADGES
+═══════════════════════════════════════════════════════════════ -->
+<div class="badge" style="left:270px; top:365px;">1</div>
+<div class="badge" style="left:662px; top:97px;">2</div>
+<div class="badge" style="left:858px; top:97px;">3</div>
+<div class="badge" style="left:1054px; top:97px;">4</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STEP BOXES
+     Lane 0 top=120 · Lane 1 top=388 · Lane 2 top=655
+     Col left: 221 417 613 809 1005 1201
+═══════════════════════════════════════════════════════════════ -->
+
+<!-- Col 1: Create checkout session (Server → Yuno) -->
+<div class="step" style="left:221px; top:388px;">Create<br>checkout<br>session</div>
+<div class="step" style="left:221px; top:655px;">Validates &amp;<br>creates<br>session</div>
+
+<!-- Col 2: Returns session_id (Yuno → Server) -->
+<div class="step" style="left:417px; top:388px;">Receives<br>session_id<br>+ config</div>
+<div class="step" style="left:417px; top:655px;">Returns<br>session_id<br>+ config</div>
+
+<!-- Col 3: Initialize SDK (Client) -->
+<div class="step" style="left:613px; top:120px;">Initialize<br>SDK with<br>session_id</div>
+
+<!-- Col 4: Customer selects payment method (Client) -->
+<div class="step" style="left:809px; top:120px;">Customer<br>selects<br>payment<br>method</div>
+
+<!-- Col 5: Submit payment (Client → Yuno) -->
+<div class="step" style="left:1005px; top:120px;">Submit<br>payment</div>
+<div class="step" style="left:1005px; top:655px;">Process<br>payment</div>
+
+<!-- Col 6: Webhook result (Yuno → Server) -->
+<div class="step" style="left:1201px; top:388px;">Receives<br>webhook:<br>payment<br>result</div>
+<div class="step" style="left:1201px; top:655px;">Webhook:<br>payment<br>result</div>
+
+</div><!-- /diagram -->
+</div><!-- /scroll-wrapper -->
+</body>
+</html>

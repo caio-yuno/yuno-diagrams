@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuno – Payout Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-width: 100%;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1540px;
+    height: 874px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .layer-svg {
+    position: absolute;
+    inset: 0;
+    width: 1540px;
+    height: 874px;
+    pointer-events: none;
+  }
+
+  /* ── Swim lane labels ───────────────────────────────────────── */
+  .lane-label {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0a0a0a;
+    line-height: 1.43;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* ── Step boxes (Base 2 style) ──────────────────────────────── */
+  .step {
+    position: absolute;
+    width: 104px;
+    height: 98px;
+    background: #ffffff;
+    border: 1px solid #3e4fe0;
+    border-radius: 6px;
+    box-shadow: -4px -4px 10px 0 #ffffff, 4px 4px 8px 0 rgba(0,0,0,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #0a0a0a;
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  .step.red {
+    border-color: #dc2626;
+    background: #fef2f2;
+  }
+
+  .step.green {
+    border-color: #15803d;
+    background: #f0fdf4;
+  }
+
+  /* ── Alt-path block ────────────────────────────────────────── */
+  .alt-block {
+    position: absolute;
+    border: 1.5px dashed #dc2626;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+<div class="scroll-wrapper">
+<div class="diagram">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SVG: background, swim lane dividers, connectors, sparks
+
+     3 swim lanes (Merchant Server / Yuno / Provider-Bank):
+       Lane 0 (Server)  : y=48  → y=310  cy=179  box_top=130
+       Lane 1 (Yuno)    : y=310 → y=572  cy=441  box_top=392
+       Lane 2 (Provider): y=572 → y=826  cy=699  box_top=650
+
+     5 main columns + 1 alt column, 200px spacing, starting at left=231:
+       Col1=231  Col2=431  Col3=631  Col4=831  Col5=1031
+       cx:  283   483   683   883   1083
+
+     Alt path (failure): Col5alt=1231
+       cx: 1283
+
+═══════════════════════════════════════════════════════════════ -->
+<svg class="layer-svg" viewBox="0 0 1540 874" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="card-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="rgba(0,0,0,0.07)"/>
+    </filter>
+    <marker id="arr-dn" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#64748b"/>
+    </marker>
+    <marker id="arr-red" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arr-green" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#15803d"/>
+    </marker>
+    <filter id="spark-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="diagram-clip">
+      <rect x="40" y="48" width="1460" height="778" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background card ───────────────────────────────────────── -->
+  <rect x="40" y="48" width="1460" height="778" rx="10"
+        fill="#ffffff" filter="url(#card-shadow)" opacity="0.55"/>
+
+  <!-- ── Yuno lane tint ────────────────────────────────────────── -->
+  <rect x="40" y="310" width="1460" height="262" fill="#fafafa" opacity="1"/>
+
+  <!-- ── Lane dividers ─────────────────────────────────────────── -->
+  <line x1="40" y1="310" x2="1500" y2="310" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+  <line x1="40" y1="572" x2="1500" y2="572" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ── Left label panel divider ──────────────────────────────── -->
+  <line x1="181" y1="48" x2="181" y2="826" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CONNECTOR PATHS
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- v1: Col1 Lane0→Lane1  Create recipient (solid down) -->
+  <path id="v1" d="M 283,228 L 283,392"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v2: Col2 Lane0→Lane1  Create payout (solid down) -->
+  <path id="v2" d="M 483,228 L 483,392"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v3: Col2 Lane1→Lane2  Submit transfer (solid down) -->
+  <path id="v3" d="M 483,490 L 483,650"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v4: Col3 Lane2→Lane1  Transfer result (dashed up) -->
+  <path id="v4" d="M 683,650 L 683,490"
+        stroke="#15803d" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- v5: Col4 Lane1→Lane0  Webhook: payout.succeeded (dashed up, green) -->
+  <path id="v5" d="M 883,392 L 883,228"
+        stroke="#15803d" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-green)"/>
+
+  <!-- v6: Col5 Lane2→Lane1  Transfer failed (dashed up, red) -->
+  <path id="v6" d="M 1083,650 L 1083,490"
+        stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- v7: Col5alt Lane1→Lane0  Webhook: payout.failed (dashed up, red) -->
+  <path id="v7" d="M 1283,392 L 1283,228"
+        stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-red)"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ANIMATED SPARKS
+  ════════════════════════════════════════════════════════════════ -->
+  <g clip-path="url(#diagram-clip)">
+
+    <!-- v1: Create recipient (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v2: Create payout (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="0.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v3: Submit transfer (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v3"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v4: Transfer result (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="1.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v4"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v5: Webhook payout.succeeded (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="2.4s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v5"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v6: Transfer failed (red, up) -->
+    <circle r="3" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="3.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v6"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v7: Webhook payout.failed (red, up) -->
+    <circle r="3" fill="#dc2626" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="3.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v7"/>
+      </animateMotion>
+    </circle>
+
+  </g>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SWIM LANE LABELS
+═══════════════════════════════════════════════════════════════ -->
+<div class="lane-label" style="left:109px; top:152px;">Merchant<br>Server</div>
+<div class="lane-label" style="left:109px; top:420px;">Yuno</div>
+<div class="lane-label" style="left:109px; top:672px;">Provider /<br>Bank</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     ALT BLOCK  (failure path, cols 5–5alt)
+═══════════════════════════════════════════════════════════════ -->
+<div class="alt-block" style="left:1001px; top:57px; width:439px; height:762px;">
+  <span style="position:absolute; left:8px; top:6px; font-size:11px; font-weight:600;
+               color:#dc2626; background:#fef2f2; padding:1px 5px;
+               border-radius:3px; border:1px solid #dc2626; font-family:'Inter',sans-serif;">alt</span>
+  <span style="position:absolute; left:52px; top:10px; font-size:12px; font-weight:500;
+               color:#0a0a0a; font-family:'Inter',sans-serif;">[Transfer failed]</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STEP BOXES
+     Lane0 top=130 · Lane1 top=392 · Lane2 top=650
+     Col left: 231 431 631 831 1031 1231
+═══════════════════════════════════════════════════════════════ -->
+
+<!-- Col 1: Create recipient -->
+<div class="step" style="left:231px; top:130px;">Create<br>recipient</div>
+<div class="step" style="left:231px; top:392px;">Validates &amp;<br>stores<br>recipient</div>
+
+<!-- Col 2: Create payout + Submit transfer -->
+<div class="step" style="left:431px; top:130px;">Create<br>payout</div>
+<div class="step" style="left:431px; top:392px;">Routes<br>payout<br>request</div>
+<div class="step" style="left:431px; top:650px;">Submit<br>transfer</div>
+
+<!-- Col 3: Process transfer + Transfer result -->
+<div class="step green" style="left:631px; top:392px;">Receives<br>transfer<br>result</div>
+<div class="step green" style="left:631px; top:650px;">Process<br>transfer</div>
+
+<!-- Col 4: Webhook payout.succeeded -->
+<div class="step green" style="left:831px; top:130px;">Webhook:<br>payout.<br>succeeded</div>
+<div class="step green" style="left:831px; top:392px;">Notifies<br>merchant</div>
+
+<!-- Col 5: Transfer failed (alt) -->
+<div class="step red" style="left:1031px; top:392px;">Transfer<br>failed<br>received</div>
+<div class="step red" style="left:1031px; top:650px;">Transfer<br>failed</div>
+
+<!-- Col 5alt: Webhook payout.failed -->
+<div class="step red" style="left:1231px; top:130px;">Webhook:<br>payout.<br>failed</div>
+<div class="step red" style="left:1231px; top:392px;">Notifies<br>failure</div>
+
+</div><!-- /diagram -->
+</div><!-- /scroll-wrapper -->
+</body>
+</html>

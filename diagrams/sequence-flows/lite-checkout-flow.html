@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuno – Lite Checkout Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-width: 100%;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1540px;
+    height: 874px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .layer-svg {
+    position: absolute;
+    inset: 0;
+    width: 1540px;
+    height: 874px;
+    pointer-events: none;
+  }
+
+  /* ── Swim lane labels ───────────────────────────────────────── */
+  .lane-label {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0a0a0a;
+    line-height: 1.43;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* ── Step boxes (Base 2 style) ──────────────────────────────── */
+  .step {
+    position: absolute;
+    width: 104px;
+    height: 98px;
+    background: #ffffff;
+    border: 1px solid #3e4fe0;
+    border-radius: 6px;
+    box-shadow: -4px -4px 10px 0 #ffffff, 4px 4px 8px 0 rgba(0,0,0,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #0a0a0a;
+    text-align: center;
+    line-height: 1.33;
+  }
+
+  /* ── Step number badges ─────────────────────────────────────── */
+  .step-badge {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: #3e4fe0;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fafafa;
+    line-height: 1;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div class="scroll-wrapper">
+<div class="diagram">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SVG: background, swim lane dividers, connectors, sparks
+
+     3 swim lanes (Customer/Browser, Merchant Server, Yuno):
+       Lane 0 (Customer/Browser) : y=48  → y=307  cy=177  box top=128
+       Lane 1 (Merchant Server)  : y=307 → y=567  cy=437  box top=388
+       Lane 2 (Yuno)             : y=567 → y=826  cy=696  box top=647
+
+     6 columns, 190px spacing, starting at left=211:
+       Col1=211  Col2=401  Col3=591  Col4=781
+       Col5=971  Col6=1161
+
+       cx: 263  453  643  833  1023  1213
+═══════════════════════════════════════════════════════════════ -->
+<svg class="layer-svg" viewBox="0 0 1540 874" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="card-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="rgba(0,0,0,0.07)"/>
+    </filter>
+    <marker id="arr-dn" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#64748b"/>
+    </marker>
+    <marker id="arr-up" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+      <path d="M0,0.5 L0,5.5 L6,3 z" fill="#64748b"/>
+    </marker>
+    <filter id="spark-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="diagram-clip">
+      <rect x="40" y="48" width="1460" height="778" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background card ───────────────────────────────────────── -->
+  <rect x="40" y="48" width="1460" height="778" rx="10"
+        fill="#ffffff" filter="url(#card-shadow)" opacity="0.55"/>
+
+  <!-- ── Merchant Server lane tint ─────────────────────────────── -->
+  <rect x="40" y="307" width="1460" height="260" fill="#fafafa" opacity="1"/>
+
+  <!-- ── Lane dividers ─────────────────────────────────────────── -->
+  <line x1="40" y1="307" x2="1500" y2="307" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+  <line x1="40" y1="567" x2="1500" y2="567" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ── Left label panel divider ──────────────────────────────── -->
+  <line x1="181" y1="48" x2="181" y2="826" stroke="#a3a3a3" stroke-width="1" stroke-dasharray="5 6"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CONNECTOR PATHS
+
+       Lane 0 (Customer/Browser): top=128 bottom=226  cy=177
+       Lane 1 (Merchant Server):  top=388 bottom=486  cy=437
+       Lane 2 (Yuno):             top=647 bottom=745  cy=696
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- v1: Col1  Lane1→Lane2  "Create checkout session" (solid down) -->
+  <path id="v1" d="M 263,486 L 263,647"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v2: Col1  Lane2→Lane1  "Returns session_id" (dashed up) -->
+  <path id="v2" d="M 320,647 L 320,486"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-up)"/>
+
+  <!-- h1: Col1→Col2  Lane0  Horizontal: "Initialize SDK (Lite)" -->
+  <path id="h1" d="M 315,177 L 401,177"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- h2: Col2→Col3  Lane0  Horizontal: "Mount lite checkout form" -->
+  <path id="h2" d="M 505,177 L 591,177"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v3: Col4  Lane0→Lane2  "Tokenize card" (solid down) -->
+  <path id="v3" d="M 833,226 L 833,647"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v4: Col4  Lane2→Lane0  "Returns one_time_token" (dashed up) -->
+  <path id="v4" d="M 890,647 L 890,226"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-up)"/>
+
+  <!-- v5: Col5  Lane0→Lane1  "Submit token" (solid down) -->
+  <path id="v5" d="M 1023,226 L 1023,388"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v6: Col5  Lane1→Lane2  "Create payment" (solid down) -->
+  <path id="v6" d="M 1060,486 L 1060,647"
+        stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arr-dn)"/>
+
+  <!-- v7: Col6  Lane2→Lane1  "Payment result" (dashed up) -->
+  <path id="v7" d="M 1213,647 L 1213,486"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-up)"/>
+
+  <!-- v8: Col6  Lane1→Lane0  "Display result" (dashed up) -->
+  <path id="v8" d="M 1250,388 L 1250,226"
+        stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"
+        fill="none" marker-end="url(#arr-up)"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ANIMATED SPARKS
+  ════════════════════════════════════════════════════════════════ -->
+  <g clip-path="url(#diagram-clip)">
+
+    <!-- v1: Create checkout session (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v2: Returns session_id (orange, up) -->
+    <circle r="3" fill="#f97316" filter="url(#spark-glow)" opacity="0.8">
+      <animateMotion dur="1.6s" begin="0.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- h1: Initialize SDK (blue, right) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="0.8s" begin="1.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#h1"/>
+      </animateMotion>
+    </circle>
+
+    <!-- h2: Mount form (blue, right) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="0.8s" begin="1.4s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#h2"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v3: Tokenize card (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="2.4s" begin="1.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v3"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v4: Returns OTT (orange, up) -->
+    <circle r="3" fill="#f97316" filter="url(#spark-glow)" opacity="0.8">
+      <animateMotion dur="2.4s" begin="2.6s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v4"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v5: Submit token (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.4s" begin="3.2s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v5"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v6: Create payment (blue, down) -->
+    <circle r="3.5" fill="#3e4fe0" filter="url(#spark-glow)" opacity="0.9">
+      <animateMotion dur="1.6s" begin="3.8s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v6"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v7: Payment result (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.6s" begin="4.4s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v7"/>
+      </animateMotion>
+    </circle>
+
+    <!-- v8: Display result (green, up) -->
+    <circle r="3" fill="#15803d" filter="url(#spark-glow)" opacity="0.85">
+      <animateMotion dur="1.4s" begin="5.0s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#v8"/>
+      </animateMotion>
+    </circle>
+
+  </g>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SWIM LANE LABELS
+═══════════════════════════════════════════════════════════════ -->
+<div class="lane-label" style="left:109px; top:160px;">Customer /<br>Browser</div>
+<div class="lane-label" style="left:109px; top:420px;">Merchant<br>Server</div>
+<div class="lane-label" style="left:109px; top:690px;">Yuno</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STEP BOXES
+     Lane 0 top=128 · Lane 1 top=388 · Lane 2 top=647
+     Col left: 211, 401, 591, 781, 971, 1161
+═══════════════════════════════════════════════════════════════ -->
+
+<!-- ── Col 1 · Step 1: Create checkout session ───────────────── -->
+<div class="step" style="left:211px; top:388px;">Create<br>checkout<br>session</div>
+<div class="step" style="left:211px; top:647px;">Returns<br>session_id</div>
+
+<!-- ── Col 2 · Step 2: Initialize SDK (Lite) ─────────────────── -->
+<div class="step" style="left:401px; top:128px;">Initialize<br>Yuno SDK<br>(Lite mode)</div>
+
+<!-- ── Col 3 · Step 3: Mount lite checkout form ──────────────── -->
+<div class="step" style="left:591px; top:128px;">Mount lite<br>checkout<br>form</div>
+
+<!-- ── Col 4 · Step 3 cont: Tokenize card ────────────────────── -->
+<div class="step" style="left:781px; top:128px;">Customer<br>fills card<br>details</div>
+<div class="step" style="left:781px; top:647px;">Tokenize<br>card →<br>one_time_<br>token</div>
+
+<!-- ── Col 5 · Step 4: Submit token → Create payment ─────────── -->
+<div class="step" style="left:971px; top:128px;">Submit<br>token to<br>server</div>
+<div class="step" style="left:971px; top:388px;">Create<br>payment<br>with token</div>
+<div class="step" style="left:971px; top:647px;">Processes<br>payment</div>
+
+<!-- ── Col 6 · Step 5: Payment result → Display ──────────────── -->
+<div class="step" style="left:1161px; top:128px;">Display<br>result to<br>customer</div>
+<div class="step" style="left:1161px; top:388px;">Receives<br>payment<br>result</div>
+<div class="step" style="left:1161px; top:647px;">Returns<br>payment<br>result</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     NUMBERED STEP BADGES  (left = box_left-10, top = box_top-9)
+═══════════════════════════════════════════════════════════════ -->
+<div class="step-badge" style="left:201px; top:379px;">1</div>
+<div class="step-badge" style="left:391px; top:119px;">2</div>
+<div class="step-badge" style="left:581px; top:119px;">3</div>
+<div class="step-badge" style="left:961px; top:119px;">4</div>
+<div class="step-badge" style="left:1151px; top:119px;">5</div>
+
+</div><!-- /diagram -->
+</div><!-- /scroll-wrapper -->
+</body>
+</html>
